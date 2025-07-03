@@ -229,7 +229,7 @@ def main():
         image_filename = IMAGE_MAPPING.get(selected_sheet)
         
         if image_filename and os.path.exists(image_filename):
-            st.image(image_filename, caption=f"Gambar untuk sheet: {selected_sheet}", use_container_width=True)
+            st.image(image_filename, caption=f"Gambar untuk sheet: {selected_sheet}", use_column_width=True)
         elif image_filename:
             st.warning(f"File gambar tidak ditemukan! Pastikan ada file bernama '{image_filename}' di folder yang sama.")
         else:
