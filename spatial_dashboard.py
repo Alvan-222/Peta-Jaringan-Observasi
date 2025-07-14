@@ -13,21 +13,46 @@ st.set_page_config(
     layout="wide"
 )
 
-# Nama file yang akan dibaca secara otomatis
+# Load File Excel
 FILE_PATH = "METADATA_SELURUH_DATA.xlsx"
 
-# --- NAMA FILE GAMBAR ---
-# Pastikan gambar ada di folder yang sama dengan skrip Python dan nama file gambar sesuai dengan nama file.
+# --- PEMETAAN GAMBAR, IKON, DAN WARNA (SESUAI PERMINTAAN BARU) ---
 IMAGE_MAPPING = {
     "IKRO": "ikro.png",
     "AWS": "aws.png",
     "AAWS": "aaws.png",
     "ARG": "arg.png",
     "ASRS": "asrs.png"
-    # Tambahkan atau ubah sesuai nama sheet dan gambar Anda
 }
-# --- FUNGSI-FUNGSI APLIKASI ---
 
+# Kamus untuk Nama Lengkap Alat (untuk legenda)
+NAMA_ALAT_MAPPING = {
+    "AWS": "Automatic Weather Station",
+    "AAWS": "Automatic Agroclimate Weather Station",
+    "ARG": "Automatic Rain Gauge",
+    "IKRO": "Iklim Mikro",
+    "ASRS": "Automatic Solar Radiation Station",
+}
+
+# Kamus untuk Ikon berdasarkan jenis alat
+IKON_MAPPING = {
+    "AWS": "cloud",
+    "AAWS": "leaf",
+    "ARG": "tint",
+    "IKRO": "thermometer-half",
+    "ASRS": "sun",
+}
+
+# Kamus untuk Warna Ikon
+WARNA_MAPPING = {
+    "AWS": "blue",
+    "AAWS": "green",
+    "ARG": "cadetblue",
+    "IKRO": "orange",
+    "ASRS": "red"
+}
+
+# --- FUNGSI-FUNGSI APLIKASI ---
 @st.cache_data
 def get_sheet_names(file_path):
     """Membaca dan mengembalikan nama-nama sheet dari file Excel."""
@@ -46,68 +71,65 @@ def load_data_from_sheet(file_path, sheet_name):
     try:
         df = pd.read_excel(file_path, sheet_name=sheet_name)
         
-        # Pemetaan kolom yang mungkin ke nama standar
         column_mapping = {
-            'id_station': 'id_site', 'id_site': 'id_site',
-            'name_station': 'nama_site', 'nama_site': 'nama_site',
-            'nama_propinsi': 'provinsi', 'provinsi': 'provinsi',
-            'nama_kota': 'kabupaten', 'kabupaten': 'kabupaten',
-            'kecamatan': 'kecamatan',
-            'kelurahan': 'desa', 'desa':'desa',
-            'latt_station': 'latitude', 'latitude': 'latitude',
-            'long_station': 'longitude', 'longitude': 'longitude',
-            'elv_station': 'elevasi', 'elevasi': 'elevasi',
-            'tgl_pasang': 'tgl_pasang', 'th_pengadaan': 'tgl_pasang',
-            'addr_instansi': 'alamat', 'alamat': 'alamat',
-            'nama_vendor': 'merk', 'merk': 'merk',
+            'id_station': 'id_site', 'id_site': 'id_site', 'name_station': 'nama_site',
+            'nama_site': 'nama_site', 'nama_propinsi': 'provinsi', 'provinsi': 'provinsi',
+            'nama_kota': 'kabupaten', 'kabupaten': 'kabupaten', 'kecamatan': 'kecamatan',
+            'kelurahan': 'desa', 'desa':'desa', 'latt_station': 'latitude', 'latitude': 'latitude',
+            'long_station': 'longitude', 'longitude': 'longitude', 'elv_station': 'elevasi',
+            'elevasi': 'elevasi', 'tgl_pasang': 'tgl_pasang', 'th_pengadaan': 'tgl_pasang',
+            'addr_instansi': 'alamat', 'alamat': 'alamat', 'nama_vendor': 'merk', 'merk': 'merk',
             'instansi': 'instansi'
         }
-        # Ganti nama kolom yang ada di DataFrame
         df.rename(columns=lambda col: column_mapping.get(col, col), inplace=True)
         
-        # --- Proses dan Bersihkan Data ---
-        # Pastikan kolom-kolom standar ada, jika tidak buat kolom kosong
         standard_columns = ['id_site', 'nama_site', 'provinsi', 'kabupaten', 'kecamatan', 'desa', 'latitude', 'longitude', 'elevasi', 'tgl_pasang', 'alamat', 'merk', 'instansi']
         for col in standard_columns:
             if col not in df.columns:
                 df[col] = None
 
-        # Konversi dan pembersihan data
         df['latitude'] = pd.to_numeric(df['latitude'], errors='coerce')
         df['longitude'] = pd.to_numeric(df['longitude'], errors='coerce')
         df['id_site'] = df['id_site'].astype(str)
-        # Ekstrak tahun dari 'tgl_pasang'
         df['th_pengadaan'] = pd.to_datetime(df['tgl_pasang'], errors='coerce').dt.year
-        # Isi nilai 'merk' yang kosong dengan 'N/A'
         df['merk'] = df['merk'].fillna('N/A').astype(str)
-        # Hapus baris dengan koordinat yang tidak valid
         df.dropna(subset=['latitude', 'longitude'], inplace=True)
         
         return df
     
     except Exception as e:
         st.error(f"Gagal memuat sheet '{sheet_name}'. Error: {e}")
-        return pd.DataFrame() # Kembalikan DataFrame kosong jika gagal
+        return pd.DataFrame()
 
-def create_indonesia_map(df, selected_site_id=None):
+def create_indonesia_map(df, selected_site_id=None, selected_sheet=None):
     """
-    Membuat peta interaktif Indonesia dengan popup.
-    Menampilkan semua lokasi stasiun cuaca dengan opsi untuk memilih satu stasiun.
+    (FUNGSI DIPERBARUI)
+    Membuat peta interaktif dengan ikon dan warna kustom.
     """
     if df.empty: return folium.Map(location=[-2.5, 129.0], zoom_start=4)
 
     m = folium.Map(location=[-2.5, 129.0], zoom_start=4.5, tiles='CartoDB positron')
     folium.TileLayer('OpenStreetMap').add_to(m)
 
+    # Dapatkan ikon dan warna default untuk sheet ini
+    default_icon = IKON_MAPPING.get(selected_sheet, 'info-sign')
+    default_color = WARNA_MAPPING.get(selected_sheet, 'gray')
+
     for _, site in df.iterrows():
         is_selected = str(site['id_site']) == str(selected_site_id)
-        color, icon = ('red', 'star') if is_selected else ('blue', 'cloud')
         
-        # --- KONTEN POPUP YANG DIPERBARUI ---
+        if is_selected:
+            # Ikon untuk stasiun yang dipilih
+            marker_color, marker_icon, marker_prefix = ('red', 'star', 'glyphicon')
+        else:
+            # Gunakan ikon dan warna dari pemetaan
+            marker_color = default_color
+            marker_icon = default_icon
+            marker_prefix = 'fa' # Semua ikon kustom menggunakan Font Awesome
+        
         popup_content = f"""
         <div style="width: 300px; font-family: Arial, sans-serif; font-size: 14px;">
-            <h4 style="margin-bottom: 10px; color: #007BFF;">{site.get('nama_site', 'N/A')}</h4>
-            <hr style="margin: 5px 0;">
+            <h4 style="margin-bottom: 10px; color: #007BFF;">{site.get('nama_site', 'N/A')}</h4><hr style="margin: 5px 0;">
             <b>ID Stasiun:</b> {site.get('id_site', 'N/A')}<br>
             <b>Provinsi:</b> {site.get('provinsi', 'N/A')}<br>
             <b>Kab/Kota:</b> {site.get('kabupaten', 'N/A')}<br>
@@ -121,15 +143,14 @@ def create_indonesia_map(df, selected_site_id=None):
             location=[site['latitude'], site['longitude']],
             popup=folium.Popup(popup_content, max_width=350),
             tooltip=f"{site.get('nama_site', 'N/A')}",
-            icon=folium.Icon(color=color, icon=icon, prefix='glyphicon')
+            icon=folium.Icon(color=marker_color, icon=marker_icon, prefix=marker_prefix)
         ).add_to(m)
     
     folium.LayerControl().add_to(m)
     return m
 
-# --- FUNGSI-FUNGSI UNTUK STATISTIK DAN CHARTS ---
+# --- FUNGSI-FUNGSI UNTUK STATISTIK DAN CHARTS --- (Tidak ada perubahan)
 def create_province_distribution_chart(df):
-    """Membuat chart distribusi stasiun per provinsi."""
     if df.empty or 'provinsi' not in df.columns: return go.Figure()
     province_counts = df['provinsi'].dropna().value_counts()
     fig = px.bar(province_counts, y=province_counts.index, orientation='h', title="Distribusi Stasiun per Provinsi", labels={'value': 'Jumlah', 'index': 'Provinsi'}, color=province_counts.values, color_continuous_scale='Viridis')
@@ -137,7 +158,6 @@ def create_province_distribution_chart(df):
     return fig
 
 def create_installation_timeline_chart(df):
-    """Membuat chart linimasa instalasi stasiun."""
     if df.empty or 'th_pengadaan' not in df.columns: return go.Figure()
     df_clean = df.dropna(subset=['th_pengadaan'])
     if df_clean.empty: return go.Figure()
@@ -170,7 +190,7 @@ def main():
         st.stop()
 
     st.sidebar.header("⚙️ Pengaturan Data")
-    selected_sheet = st.sidebar.selectbox("1. Pilih Sumber Data (Sheet)", sheet_names)
+    selected_sheet = st.sidebar.selectbox("1. Pilih Sumber Data ", sheet_names)
     
     df = load_data_from_sheet(FILE_PATH, selected_sheet)
 
@@ -182,7 +202,7 @@ def main():
     site_options = df[['id_site', 'nama_site']].copy().dropna(subset=['nama_site'])
     site_options['display'] = site_options['id_site'].astype(str) + ' - ' + site_options['nama_site']
     
-    selected_site_display = st.sidebar.selectbox("2. Pilih Stasiun untuk Detail", site_options['display'].tolist())
+    selected_site_display = st.sidebar.selectbox("2. Pilih Stasiun Detail", site_options['display'].tolist())
     selected_site_id = selected_site_display.split(' - ')[0]
 
     tab1, tab2, tab3, tab4, tab5 = st.tabs(["🗺️ Peta Interaktif", "📊 Statistik", "📋 Direktori", "🎯 Detail", "🖼️ Gambar Statis"])
@@ -194,15 +214,23 @@ def main():
         col2.metric("Provinsi Terjangkau", df['provinsi'].nunique())
         col3.metric("Aktif Sejak", int(df['th_pengadaan'].min()) if df['th_pengadaan'].notna().any() else "N/A")
 
-        map_obj = create_indonesia_map(df, selected_site_id)
+        map_obj = create_indonesia_map(df, selected_site_id, selected_sheet)
         st_folium(map_obj, width=1200, height=600, returned_objects=[])
         
-        st.markdown("""
-        **Legenda Peta:**
-        - 🔴 **Bintang Merah**: Stasiun yang sedang dipilih.
-        - 🔵 **Awan Biru**: Stasiun lainnya.
-        """)
-    
+        st.markdown("---")
+        st.markdown("#### Legenda Peta")
+        st.markdown("- 🔴 **Bintang Merah**: Stasiun yang sedang dipilih.")
+        
+
+        legend_html = ""
+        for sheet, name in NAMA_ALAT_MAPPING.items():
+            if sheet in sheet_names:
+                 icon = IKON_MAPPING.get(sheet, 'info-sign')
+                 color = WARNA_MAPPING.get(sheet, 'gray')
+                 legend_html += f" <i class='fa fa-{icon}' style='color:{color}'></i>: **{name}** ({sheet})<br>"
+        
+        st.markdown(legend_html, unsafe_allow_html=True)
+        
     with tab2:
         st.subheader(f"Statistik Jaringan dari Sheet: `{selected_sheet}`")
         col1, col2 = st.columns(2)
@@ -224,8 +252,6 @@ def main():
 
     with tab5:
         st.subheader(f"Tampilan Gambar untuk Sheet: `{selected_sheet}`")
-        
-        # Ambil nama file gambar dari pemetaan berdasarkan sheet yang dipilih
         image_filename = IMAGE_MAPPING.get(selected_sheet)
         
         if image_filename and os.path.exists(image_filename):
@@ -233,8 +259,7 @@ def main():
         elif image_filename:
             st.warning(f"File gambar tidak ditemukan! Pastikan ada file bernama '{image_filename}' di folder yang sama.")
         else:
-            st.info(f"Tidak ada gambar yang diatur untuk sheet '{selected_sheet}'. Anda bisa mengaturnya di variabel `IMAGE_MAPPING` dalam kode.")
-
+            st.info(f"Tidak ada gambar yang diatur untuk sheet '{selected_sheet}'.")
 
 if __name__ == "__main__":
     main()
