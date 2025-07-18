@@ -16,7 +16,7 @@ st.set_page_config(
 # Load File Excel
 FILE_PATH = "METADATA_SELURUH_DATA.xlsx"
 
-# --- PEMETAAN GAMBAR, IKON, DAN WARNA (SESUAI PERMINTAAN BARU) ---
+# --- PEMETAAN GAMBAR, IKON, DAN WARNA ---
 IMAGE_MAPPING = {
     "IKRO": "ikro.png",
     "AWS": "aws.png",
@@ -25,7 +25,7 @@ IMAGE_MAPPING = {
     "ASRS": "asrs.png"
 }
 
-# Kamus untuk Nama Lengkap Alat (untuk legenda)
+# Nama Alat untuk legenda
 NAMA_ALAT_MAPPING = {
     "AWS": "Automatic Weather Station",
     "AAWS": "Automatic Agroclimate Weather Station",
@@ -34,7 +34,7 @@ NAMA_ALAT_MAPPING = {
     "ASRS": "Automatic Solar Radiation Station",
 }
 
-# Kamus untuk Ikon berdasarkan jenis alat
+# Ikon berdasar jenis alat
 IKON_MAPPING = {
     "AWS": "cloud",
     "AAWS": "leaf",
@@ -43,7 +43,7 @@ IKON_MAPPING = {
     "ASRS": "sun",
 }
 
-# Kamus untuk Warna Ikon
+# Warna Ikon
 WARNA_MAPPING = {
     "AWS": "blue",
     "AAWS": "green",
@@ -103,15 +103,14 @@ def load_data_from_sheet(file_path, sheet_name):
 
 def create_indonesia_map(df, selected_site_id=None, selected_sheet=None):
     """
-    (FUNGSI DIPERBARUI)
-    Membuat peta interaktif dengan ikon dan warna kustom.
+        Membuat peta interaktif dengan ikon dan warna kustom.
     """
     if df.empty: return folium.Map(location=[-2.5, 129.0], zoom_start=4)
 
     m = folium.Map(location=[-2.5, 129.0], zoom_start=4.5, tiles='CartoDB positron')
     folium.TileLayer('OpenStreetMap').add_to(m)
 
-    # Dapatkan ikon dan warna default untuk sheet ini
+    # Ikon dan warna default untuk sheet dipilih
     default_icon = IKON_MAPPING.get(selected_sheet, 'info-sign')
     default_color = WARNA_MAPPING.get(selected_sheet, 'gray')
 
@@ -149,7 +148,7 @@ def create_indonesia_map(df, selected_site_id=None, selected_sheet=None):
     folium.LayerControl().add_to(m)
     return m
 
-# --- FUNGSI-FUNGSI UNTUK STATISTIK DAN CHARTS --- (Tidak ada perubahan)
+# --- FUNGSI-FUNGSI STATISTIK DAN CHARTS --- 
 def create_province_distribution_chart(df):
     if df.empty or 'provinsi' not in df.columns: return go.Figure()
     province_counts = df['provinsi'].dropna().value_counts()
