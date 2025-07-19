@@ -81,7 +81,8 @@ def load_data_from_sheet(file_path, sheet_name):
             'addr_instansi': 'alamat', 'alamat': 'alamat', 'nama_vendor': 'merk', 'merk': 'merk',
             'instansi': 'instansi'
         }
-        df.rename(columns=lambda col: column_mapping.get(col, col), inplace=True)
+        # Mengganti nama kolom dalam dataframe
+        df.rename(columns=lambda col: column_mapping.get(col, col), inplace=True) 
         
         standard_columns = ['id_site', 'nama_site', 'provinsi', 'kabupaten', 'kecamatan', 'desa', 'latitude', 'longitude', 'elevasi', 'tgl_pasang', 'alamat', 'merk', 'instansi']
         for col in standard_columns:
